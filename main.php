@@ -1,79 +1,95 @@
-<?php 
-   session_start();
-  include 'connection.php';
-if(!isset($_SESSION['user'])){
-						header("Location:login.php");
-					}else{
-						$now = time();
-					if ($now > $_SESSION['expire']) {
-						session_destroy(); 
-					}
-					}
+<?php
+session_start();
 
-?>
-<html> 
-<head> 
-<title>PSSSA Official Page</title> 
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> 
-<link href="css/layout.css" rel="stylesheet" type="text/css" /> 
-<style> 
-  a:hover{
-	  color:black;
-	  background-color:white;
-  } 
-  a{
-  
-  text-decoration : none;
+// Check if user is logged in
+if (!isset($_SESSION["user"])) {
+  header("location: login.php");  // Changed back to login.php assuming that's your login page
+  exit;
 }
-</style> 
-</head> 
-<body bgcolor="lightblue">
-<div style="padding:10px;width:99%;margin:auto;">
-<div style="width:100%;background-color:gray;margin-bottom:-20px;">
-   <img src="pssa.jpg" style="width:100%;">
-</div> 
- <?php 
-       $user=$_SESSION['user'];
-	   $sql="select role from users where username='$user'";
-       $result=$mysqli->query($sql);
-	   $roles=$result->fetch_assoc();
- ?>
-   <div  style="padding:20px;width:20%;margin:auto;background-color:E1F8DC;text-align:center;font-family:verdana;font-size:18px;
-             margin-top:50px; border-radius:0px;float:left;line-height:50px;border:solid blue 1px;height:100%;">
-   <?php if($roles['role']=="Admin"){ ?> 
-   <a href="pensioner.php" style="float:left;">Register new pensioner</a> <br>
-     <a href="beneficiery.php" style="float:left;">Register Beneficiery</a> <br>
-   <a href="create.php" style="float:left;">Add new user</a><br>
-   <a href="report.php" style="float:left;">Generate report</a><br>
-   <a href="viewfeed.php" style="float:left;">View feedbacks</a><br>
-   <a href="calculate.php" style="float:left;">Calculate Pension</a><br>
-   <a href="logout.php" style="float:left;">Logout</a><br>
-   <?php }
-     else if($roles['role']=="Pensioner"){ ?>
-   <a href="feedback.php" style="float:left;">Send feedback</a> <br>
-   <a href="report.php" style="float:left;">Generate report</a><br>
-   <a href="logout.php" style="float:left;">Logout</a><br>
-	 <?php } 
-	 else if($roles['role']=="Clerk"){	 ?>   
-   <a href="pensioner.php" style="float:left;">Register new pensioner</a> <br>
-   <a href="report.php" style="float:left;">Generate report</a><br>
-   <a href="logout.php" style="float:left;">Logout</a><br>
-     <?php } 
-	  else if($roles['role']=="Organization"){	 ?>  
-   <a href="pensioner.php" style="float:left;">Register new pensioner</a> <br>
-   <a href="report.php" style="float:left;">Generate report</a><br>
-   <a href="index.php" style="float:left;">Logout</a><br>  
-	  <?php } ?>
 
-</div>
-</div>
-<div style="background-color:;text-indent:0px;margin-top:50px;width:70%;font-family:verdana;font-size:25px;float:right;line-height:40px;background-color:white;border-radius:10px;padding:25px;height:100%;" >
- 
- The Public Employees Social Security Administration is a federal government administration established by Council of Ministers Regulation No. 203/2003. The administration was established with the aim of expanding and strengthening the social security programs of government employees. The administration's main mission is to register and issue pensions, collect pension contributions, determine pensions and pay, and administer pensions.<br>
-   
-    
-	
-</div>
-</body> 
-</html> 
+// Handle form submission
+if (isset($_POST['submit'])) {
+  $choice = $_POST['pension_type'];
+  $_SESSION['pension_choice'] = $choice;
 
+  // Redirect based on choice
+  if ($choice == "public") {
+    header("location: public_companies.php");
+    exit;
+  } elseif ($choice == "private") {
+    header("location: private_companies.php");
+    exit;
+  }
+}
+?>
+
+<html>
+
+<head>
+  <title>Pension Choice</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <style>
+    body {
+      background-color: lightblue;
+      font-family: Verdana, sans-serif;
+      text-align: center;
+    }
+
+    .container {
+      width: 40%;
+      margin: 50px auto;
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .radio-option {
+      margin: 15px 0;
+      font-size: 18px;
+    }
+
+    input[type="submit"] {
+      width: 40%;
+      height: 40px;
+      margin-top: 20px;
+      font-size: 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h2>Welcome, <?php echo htmlspecialchars($_SESSION['user']); ?>!</h2>
+    <h3>Please Select Your Pension Preference</h3>
+
+    <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="POST">
+      <div class="radio-option">
+        <input type="radio" id="private" name="pension_type" value="private" required>
+        <label for="private">Private Company Pension</label>
+      </div>
+
+      <div class="radio-option">
+        <input type="radio" id="public" name="pension_type" value="public">
+        <label for="public">Public Company Pension</label>
+      </div>
+
+      <input type="submit" name="submit" value="Submit Choice">
+    </form>
+
+    <p style="margin-top: 20px;">
+      <a href="logout.php" style="color: blue;">Logout</a>
+    </p>
+  </div>
+</body>
+
+</html>
