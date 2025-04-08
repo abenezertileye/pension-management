@@ -49,8 +49,10 @@ th,td{
    <div  style="padding:20px;width:20%;margin:auto;background-color:E1F8DC;text-align:center;font-family:verdana;font-size:18px;
              margin-top:50px; border-radius:0px;float:left;line-height:50px;border:solid blue 1px;height:100%;">
    <?php if($roles['role']=="Admin"){ ?> 
-   <a href="pensioner.php" style="float:left;">Register new pensioner</a> <br>
-     <a href="beneficiery.php" style="float:left;">Register Beneficiery</a> <br>
+	<a href="register_company.php" style="float:left;">Register new company</a> <br>
+
+   <a href="choose_company.php" style="float:left;">Register new pensioner</a> <br>
+     <a href="choose_company_2.php" style="float:left;">Register Beneficiery</a> <br>
    <a href="create.php" style="float:left;">Add new user</a><br>
    <a href="report.php" style="float:left;">Generate report</a><br>
    <a href="viewfeed.php" style="float:left;">View feedbacks</a><br>
@@ -63,12 +65,12 @@ th,td{
    <a href="logout.php" style="float:left;">Logout</a><br>
 	 <?php } 
 	 else if($roles['role']=="Clerk"){	 ?>   
-   <a href="pensioner.php" style="float:left;">Register new pensioner</a> <br>
+   <a href="choose_company.php" style="float:left;">Register new pensioner</a> <br>
    <a href="report.php" style="float:left;">Generate report</a><br>
    <a href="logout.php" style="float:left;">Logout</a><br>
      <?php } 
 	  else if($roles['role']=="Organization"){	 ?>  
-   <a href="pensioner.php" style="float:left;">Register new pensioner</a> <br>
+   <a href="choose_company.php" style="float:left;">Register new pensioner</a> <br>
    <a href="report.php" style="float:left;">Generate report</a><br>
    <a href="index.php" style="float:left;">Logout</a><br>  
 	  <?php } ?>
