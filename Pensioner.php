@@ -2,89 +2,104 @@
 session_start();
 include_once('connection.php');
 error_reporting(1);
-session_start();
 
 if (!isset($_SESSION['user'])) {
-  header("Location:login.php");
+  header("Location: login.php");
+  exit;
 } else {
   $now = time();
   if ($now > $_SESSION['expire']) {
     session_destroy();
+    header("Location: login.php");
+    exit;
   }
 }
 
+// Ensure a company was selected
+if (!isset($_SESSION['selected_company_id'])) {
+  header("Location: choose_company.php");
+  exit;
+}
+
+// Ensure organization type was chosen
+if (!isset($_SESSION['pension_choice']) || !in_array($_SESSION['pension_choice'], ['public', 'private'])) {
+  header("Location: pension_choice.php");
+  exit;
+}
 
 $success = 0;
-$sex = $_POST["sex"];
-$bod = $_POST["dob"];
-$type = $_POST["org"];
-$nationality = $_POST["nationality"];
-$mstatus = $_POST["mstatus"];
-$salary = $_POST["salary"];
-$service = $_POST["service"];
-$rdate =  date("y-m-d");
-$id = $_SESSION['sid'];
-$first = $_POST["firstname"];
-$father = $_POST["fathername"];
-$last = $_POST["lastname"];
+$sex = $_POST["sex"] ?? '';
+$bod = $_POST["dob"] ?? '';
+$nationality = $_POST["nationality"] ?? '';
+$mstatus = $_POST["mstatus"] ?? '';
+$salary = $_POST["salary"] ?? '';
+$service = $_POST["service"] ?? '';
+$rdate = date("Y-m-d"); // Use full year format (Y-m-d) instead of y-m-d
+$first = $_POST["firstname"] ?? '';
+$father = $_POST["fathername"] ?? '';
+$last = $_POST["lastname"] ?? '';
+$type = $_SESSION['pension_choice']; // Use the session value
+$company_id = $_SESSION['selected_company_id']; // From choose_company.php
 
-if (@$_REQUEST['register']) {
-  if (empty($first) or empty($father) or empty($last) or empty($sex) or empty($bod) or empty($type) or empty($nationality) or empty($mstatus) or empty($salary) or empty($service)) {
+if (isset($_REQUEST['register'])) {
+  if (empty($first) || empty($father) || empty($last) || empty($sex) || empty($bod) || empty($nationality) || empty($mstatus) || empty($salary) || empty($service)) {
     echo "<script>alert('Fill all required fields');</script>";
-  } else if ((!preg_match('/[a-zA-Z]/', trim($_POST["firstname"]))) or (!preg_match('/[a-zA-Z]/', trim($_POST["fathername"]))) or (!preg_match('/[a-zA-Z]/', trim($_POST["lastname"])))
-    or (!preg_match('/[a-zA-Z]/', trim($nationality))) or (!preg_match('/[a-zA-Z]/', trim($mstatus)))
+  } else if ((!preg_match('/[a-zA-Z]/', trim($first))) || (!preg_match('/[a-zA-Z]/', trim($father))) || (!preg_match('/[a-zA-Z]/', trim($last)))
+    || (!preg_match('/[a-zA-Z]/', trim($nationality))) || (!preg_match('/[a-zA-Z]/', trim($mstatus)))
   ) {
-    $msg = "Incorrect data. Please dont fill numbers in text fields.";
+    $msg = "Incorrect data. Please don’t fill numbers in text fields.";
   } else {
-    $fname = $first . " " . $father . " " . $last;
-    $qfile = $_FILES['photo']['name'];
-    $tname = $_FILES['photo']['tmp_name'];
+    $fname = "$first $father $last";
+    $qfile = $_FILES['photo']['name'] ?? '';
+    $tname = $_FILES['photo']['tmp_name'] ?? '';
     $folder = $qfile;
-    //   echo "here 1.....";
-    $query = "select * from pensioner ORDER BY id DESC LIMIT 1";
-    $query = $mysqli->query($query);
-    //$t=$query->num_rows;	 	 	
-    if ($query->num_rows >= 1) {
-      $t = $query->fetch_assoc();
 
-      if ($type == 'Public') {
-        $orgid = "Pub" . $t['id'] + 1;
-        $ssno = $orgid . $t['id'] + 3;
+    $query = "SELECT * FROM pensioner ORDER BY id DESC LIMIT 1";
+    $result = $mysqli->query($query);
+    if ($result->num_rows >= 1) {
+      $t = $result->fetch_assoc();
+      $last_id = $t['id'];
+      if ($type == 'public') {
+        $orgid = "Pub" . ($last_id + 1);
+        $ssno = $orgid . ($last_id + 3);
       } else {
-        $orgid = "Pri" . $t['id'] + 1;
-        $ssno = $orgid . $t['id'] + 3;
+        $orgid = "Pri" . ($last_id + 1);
+        $ssno = $orgid . ($last_id + 3);
       }
     } else {
-      if ($type == 'Public') {
-        $orgid = "Pub" . "11";
-        $ssno = $orgid . "13";
+      if ($type == 'public') {
+        $orgid = "Pub11";
+        $ssno = "Pub1113";
       } else {
-        $orgid = "Pri" . "11";
-        $ssno = $orgid . "13";
+        $orgid = "Pri11";
+        $ssno = "Pri1113";
       }
     }
-    // echo "here 3.....";					
 
-    //$fp=addslashes(file_get_contents($_FILES['photo']['tmp_name'])); 
-    $query = "INSERT INTO Pensioner(ssn,fname,sex,bod,orgtype,nationality,mstatus,salary,service,rdate,orgid,fp,photo)  VALUES('$ssno', '$fname','$sex', '$bod','$type', '$nationality', '$mstatus',
-					'$salary','$service', '$rdate','$orgid', '$fp','$qfile')";
-    $result = $mysqli->query($query) or die($mysqli->error);
-    if ($result) {
-      move_uploaded_file($tname, $folder);
-      echo "<script>alert('You have successfully registered a new pensioner');</script>";
-      $success = 1;
+    // Prepare and execute the insert query with company_id
+    $query = "INSERT INTO Pensioner (ssn, fname, sex, bod, orgtype, nationality, mstatus, salary, service, rdate, orgid, photo, company_id) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    if ($stmt = $mysqli->prepare($query)) {
+      $stmt->bind_param("sssssssssssss", $ssno, $fname, $sex, $bod, $type, $nationality, $mstatus, $salary, $service, $rdate, $orgid, $qfile, $company_id);
+      if ($stmt->execute()) {
+        move_uploaded_file($tname, $folder);
+        echo "<script>alert('You have successfully registered a new pensioner');</script>";
+        $success = 1;
+      } else {
+        $msg = "Error registering pensioner: " . $mysqli->error;
+      }
+      $stmt->close();
     } else {
-      echo $ssno . $fname . $sex . $bod . $type . $nationality . $mstatus .
-        $salary . $service . $rdate . $orgid . $fp;
-      die('Error : (' . $con->errno . ') ' . $con->error);
+      $msg = "Database error: " . $mysqli->error;
     }
   }
 }
 ?>
+
 <html>
 
 <head>
-  <title>Pensioner Registration </title>
+  <title>Pensioner Registration</title>
   <style>
     a:hover {
       color: black;
@@ -92,231 +107,234 @@ if (@$_REQUEST['register']) {
     }
 
     a {
-
       text-decoration: none;
+    }
+
+    body {
+      background-color: lightblue;
+      margin: 0;
+    }
+
+    .header {
+      width: 100%;
+      background-color: gray;
+      margin-bottom: 10px;
+    }
+
+    .header img {
+      width: 100%;
+      display: block;
+    }
+
+    .sidebar {
+      padding: 20px;
+      width: 20%;
+      background-color: #E1F8DC;
+      text-align: center;
+      font-family: Verdana;
+      font-size: 18px;
+      margin-top: 50px;
+      border-radius: 0;
+      float: left;
+      line-height: 50px;
+      border: solid blue 1px;
+      min-height: calc(100vh - 70px);
+    }
+
+    .sidebar a {
+      float: left;
+      color: blue;
+    }
+
+    .content {
+      float: right;
+      width: 70%;
+      padding: 10px;
+      margin-top: 50px;
+    }
+
+    .form-container {
+      background-color: white;
+      width: 100%;
+      margin: auto;
+      font-family: Verdana;
+      font-size: 25px;
+      border-radius: 15px;
+    }
+
+    table {
+      width: 99%;
+      border: 0;
+      cellpadding: 8;
+      cellspacing: 10;
+      font-family: Verdana;
+      font-size: 23px;
+    }
+
+    .HeaderColor h2 {
+      text-align: center;
+      background-color: #D9D9D9;
+      width: 100%;
+    }
+
+    .LabelColor {
+      text-align: right;
+    }
+
+    .TitleColor input,
+    .TitleColor select {
+      width: 70%;
+      height: 30px;
+      font-size: 25px;
+    }
+
+    input[type="submit"],
+    input[type="reset"] {
+      width: 30%;
+      height: 40px;
+      font-family: Verdana;
+      font-size: 25px;
     }
   </style>
 </head>
 
-<body bgcolor="lightblue">
-  <div style="width:100%;background-color:gray;margin-bottom:10px;">
+<body>
+  <div class="header">
     <img src="pssa.jpg" style="width:100%;">
   </div>
   <?php
   $user = $_SESSION['user'];
-  $sql = "select role from users where username='$user'";
-  $result = $mysqli->query($sql);
-  $roles = $result->fetch_assoc();
+  $sql = "SELECT role FROM users WHERE username = ?";
+  if ($stmt = $mysqli->prepare($sql)) {
+    $stmt->bind_param("s", $user);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $roles = $result->fetch_assoc();
+    $stmt->close();
+  }
   ?>
-  <div style="padding:20px;width:20%;margin:auto;background-color:E1F8DC;text-align:center;font-family:verdana;font-size:18px;
-             margin-top:50px; border-radius:0px;float:left;line-height:50px;border:solid blue 1px;height:100%;">
+  <div class="sidebar">
     <?php if ($roles['role'] == "Admin") { ?>
-      <a href="pensioner.php" style="float:left;">Register new pensioner</a> <br>
-      <a href="beneficiery.php" style="float:left;">Register Beneficiery</a> <br>
-      <a href="create.php" style="float:left;">Add new user</a><br>
-      <a href="report.php" style="float:left;">Generate report</a><br>
-      <a href="viewfeed.php" style="float:left;">View feedbacks</a><br>
-      <a href="calculate.php" style="float:left;">Calculate Pension</a><br>
-      <a href="logout.php" style="float:left;">Logout</a><br>
+      <a href="register_company.php">Register new company</a><br>
+      <a href="choose_company.php">Register new pensioner</a><br>
+      <a href="choose_company_2.php">Register Beneficiery</a><br>
+      <a href="create.php">Add new user</a><br>
+      <a href="report.php">Generate report</a><br>
+      <a href="viewfeed.php">View feedbacks</a><br>
+      <a href="calculate.php">Calculate Pension</a><br>
+      <a href="logout.php">Logout</a><br>
     <?php } else if ($roles['role'] == "Pensioner") { ?>
-      <a href="feedback.php" style="float:left;">Send feedback</a> <br>
-      <a href="report.php" style="float:left;">Generate report</a><br>
-      <a href="logout.php" style="float:left;">Logout</a><br>
-    <?php } else if ($roles['role'] == "Clerk") {   ?>
-      <a href="pensioner.php" style="float:left;">Register new pensioner</a> <br>
-      <a href="report.php" style="float:left;">Generate report</a><br>
-      <a href="logout.php" style="float:left;">Logout</a><br>
-    <?php } else if ($roles['role'] == "Organization") {   ?>
-      <a href="pensioner.php" style="float:left;">Register new pensioner</a> <br>
-      <a href="report.php" style="float:left;">Generate report</a><br>
-      <a href="index.php" style="float:left;">Logout</a><br>
+      <a href="feedback.php">Send feedback</a><br>
+      <a href="report.php">Generate report</a><br>
+      <a href="logout.php">Logout</a><br>
+    <?php } else if ($roles['role'] == "Clerk") { ?>
+      <a href="choose_company.php">Register new pensioner</a><br>
+      <a href="report.php">Generate report</a><br>
+      <a href="logout.php">Logout</a><br>
+    <?php } else if ($roles['role'] == "Organization") { ?>
+      <a href="choose_company.php">Register new pensioner</a><br>
+      <a href="report.php">Generate report</a><br>
+      <a href="index.php">Logout</a><br>
     <?php } ?>
-
   </div>
-  <div style="float:right;width:70%;padding:10px;margin-top:50px;">
-    <form method="post" enctype="multipart/form-data"
-      style="background-color:white;width:100%;margin:auto;font-family:verdana;font-size:25px;border-radius:15px;">
-
-      <table width="99%" border="0" cellpadding="8" cellspacing="10" style="font-family:verdana;font-size:23px;">
+  <div class="content">
+    <form method="post" enctype="multipart/form-data" class="form-container">
+      <table>
         <tr>
           <td colspan="3" class="HeaderColor">
-            <h2 style="text-align:center;background-color:#D9D9D9;width:100%;">Register New Pensioner </h2>
-            <hr color=blue>
-            <font color="#FF0000" align=center>
-              <?php
-              echo $msg;
-              if ($success == 1) {
-                // $q = "select * from Pensioner where ssn='$ssno' ";
-                // $qr = $mysqli->query($q);
-                // if ($qr->num_rows == 1) {
-                //   $qrf = $qr->fetch_assoc();
 
-                //   echo "<table border=1 style='border-collapse: collapse;text-align:center;'>";
-                //   echo "<tr>" . "<th>" . "SSN" . "</th>" . "<th>" . "Name" . "<th>" . "Sex" . "</th>" . "<th>" . "Org-ID" . "</th>" . "<th>" . "Birthdate" . "</th>" . "<th>" . "Type of org" . "</th>" . "<th>" . "Nationality" . "</th>" . "<th>" . "Marital status" . "</th>" . "<th>" . "Salary" . "</th>" . "<th>" . "Status" . "</th>" . "</tr>";
-                //   echo "<tr>" . "<td>" . $qrf['ssn'] . "</td>" . "<td>" . $qrf['fname'] . "</td>" . "<td>" . $qrf['sex'] . "</td>" . "<td>" . $qrf['orgid'] . "</td>" . "<td>" . $qrf['bod'] . "</td>" . "<td>" . $qrf['orgtype'] . "</td>" . "<td>" . $qrf['nationality'] . "</td>" . "<td>" . $qrf['mstatus'] . "</td>" . "<td>" . $qrf['salary'] . "</td>" . "<td>" . $qrf['service'] . "</td>" . "</tr>";
-                //   echo "</table>";
-                // }
-              }
-
-              ?></font>
+            <h2>Register New Pensioner</h2>
+            <hr color="blue">
+            <font color="#FF0000" align="center"><?php echo $msg ?? ''; ?></font>
           </td>
         </tr>
-        <tr style="vertical-align: top">
-          <td style="text-align: right" class="LabelColor" nowrap="nowrap">
-            <label for="firstname"> First Name</label>
-          </td>
-          <td colspan="2" class="TitleColor">
-            <input style="width:70%;height:30;" type="text" id="firstname" name="firstname" required />
-          </td>
+        <tr>
+          <td class="LabelColor" nowrap="nowrap"><label for="firstname">First Name</label></td>
+          <td colspan="2" class="TitleColor"><input type="text" id="firstname" name="firstname" required /></td>
         </tr>
-        <tr style="vertical-align: top">
-          <td style="text-align: right" class="LabelColor" nowrap="nowrap">
-            <label for="fathername"> Father Name</label>
-          </td>
-          <td colspan="2" class="TitleColor">
-            <input style="width:70%;height:30;" type="text" id="fathername" name="fathername" required />
-          </td>
+        <tr>
+          <td class="LabelColor" nowrap="nowrap"><label for="fathername">Father Name</label></td>
+          <td colspan="2" class="TitleColor"><input type="text" id="fathername" name="fathername" required /></td>
         </tr>
-        <tr style="vertical-align: top">
-          <td style="text-align: right" class="LabelColor" nowrap="nowrap">
-            <label for="lastname"> Last Name</label>
-          </td>
-          <td colspan="2" class="TitleColor">
-            <input style="width:70%;height:30;" type="text" id="lastname" name="lastname" required />
-          </td>
+        <tr>
+          <td class="LabelColor" nowrap="nowrap"><label for="lastname">Last Name</label></td>
+          <td colspan="2" class="TitleColor"><input type="text" id="lastname" name="lastname" required /></td>
         </tr>
-        </tr>
-        <tr style="vertical-align: top">
-          <td style="text-align: right" class="LabelColor"> Gender </td>
+        <tr>
+          <td class="LabelColor">Gender</td>
           <td colspan="2">
-            <label for="male">Male </label>
-            <input type="radio" id="male" name="sex" value="M" />
-            <label for="female">Female </label>
-            <input type="radio" id="female" name="sex" value="F" />
+            <label for="male">Male</label><input type="radio" id="male" name="sex" value="M" />
+            <label for="female">Female</label><input type="radio" id="female" name="sex" value="F" />
           </td>
         </tr>
-        <tr style="vertical-align: top">
-          <td style="text-align: right" class="LabelColor"> Birth Date </td>
-          <td colspan="2">
-            <table border="0" cellspacing="2" cellpadding="0">
-              <tr style="text-align: left">
-                <td class="TitleColor">
-                  <label for="day"> </label>
-                  <input
-                    type="date"
-                    id="day"
-                    name="dob"
-                    onchange="validateAge()"
-                    style="width:70%;height:30;font-size:25px;" />
-                  <span id="dob-error" style="color: red; display: none;">You must be at least 22 years old.</span>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <tr style="vertical-align: top">
-          <td style="text-align: right" class="LabelColor" nowrap="nowrap">
-            <label for="type"> Type of organization</label>
-          </td>
+        <tr>
+          <td class="LabelColor">Birth Date</td>
           <td colspan="2" class="TitleColor">
-            <select name="org" style="width:70%;height:30;font-size:25px;">
-              <option>Public</option>
-              <option>Private</option>
+            <input type="date" id="day" name="dob" onchange="validateAge()" required />
+            <span id="dob-error" style="color: red; display: none;">You must be at least 22 years old.</span>
+          </td>
+        </tr>
+        <tr>
+          <td class="LabelColor" nowrap="nowrap"><label for="nationality">Nationality</label></td>
+          <td colspan="2" class="TitleColor">
+            <select id="nationality" name="nationality">
+              <option value="Ethiopian">Ethiopian</option>
+              <option value="Foreigner">Foreigner</option>
             </select>
           </td>
         </tr>
-        <tr style="vertical-align: top">
-          <td style="text-align: right" class="LabelColor" nowrap="nowrap">
-            <label for="nationality"> Nationality</label>
-          </td>
-          <td colspan="2" class="TitleColor">
-            <input style="width:70%;height:30;font-size:25px;" type="text" id="nationality" name="nationality" placeholder="Ethiopian" />
-          </td>
-        </tr>
-        <tr style="vertical-align: top">
-          <td style="text-align: right;font-size:25px;" class="LabelColor" nowrap="nowrap">
-            <label for="mstatus"> Maritial Status</label>
-          </td>
-          <td colspan="2" class="TitleColor">
-            <select id="mstatus" name="mstatus" style="width:70%;height:30;font-size:25px;">
+        <tr>
+          <td class="LabelColor" nowrap="nowrap"><label for="mstatus">Marital Status</label></td>
+          <td colspan="2" class="Title जिसमेंColor">
+            <select id="mstatus" name="mstatus">
               <option>Married</option>
               <option>Unmarried</option>
             </select>
           </td>
         </tr>
-        <tr style="vertical-align: top">
-          <td style="text-align: right;font-size:25px;" class="LabelColor" nowrap="nowrap">
-            <label for="salary"> Last 3 years avg. salary</label>
-          </td>
-          <td colspan="2" class="TitleColor">
-            <label>
-              <input name="salary" type=number style="width:70%;height:30;" max=100000>
-            </label>
-          </td>
+        <tr>
+          <td class="LabelColor" nowrap="nowrap"><label for="salary">Last 3 years avg. salary</label></td>
+          <td colspan="2" class="TitleColor"><input name="salary" type="number" max="100000" required></td>
         </tr>
-        <tr style="vertical-align: top">
-          <td style="text-align: right;font-size:25px;" class="LabelColor" nowrap="nowrap">
-            <label for="status"> Years of service</label>
-          </td>
-          <td colspan="2" class="TitleColor">
-            <label>
-              <input name="service" type=number style="width:70%;height:30;" max=50>
-            </label>
-          </td>
+        <tr>
+          <td class="LabelColor" nowrap="nowrap"><label for="service">Years of service</label></td>
+          <td colspan="2" class="TitleColor"><input name="service" type="number" max="50" required></td>
         </tr>
-        <tr style="vertical-align: top;">
-          <td style="text-align: right;font-size:25px;" class="LabelColor" nowrap="nowrap">
-            <label for="status"> Photo</label>
-          </td>
-          <td colspan="2" class="TitleColor">
-            <label>
-              <input name="photo" type=file style="width:70%;height:30;font-size:25px;" max=50>
-            </label>
-          </td>
+        <tr>
+          <td class="LabelColor" nowrap="nowrap"><label for="photo">Photo</label></td>
+          <td colspan="2" class="TitleColor"><input name="photo" type="file" required></td>
         </tr>
-        <tr style="vertical-align: top" class="FooterColor">
-          <td> </td>
+        <tr class="FooterColor">
+          <td></td>
           <td colspan="3">
-            <input style="width:30%;height:40;font-family:verdana;font-size:25px;" type="submit" name="register" value="Register" />
-            <label>
-              <input style="width:30%;height:40;font-family:verdana;font-size:25px;" type="reset" name="Submit" value="Reset" />
-            </label>
+            <input type="submit" name="register" value="Register" />
+            <input type="reset" name="Submit" value="Reset" />
           </td>
         </tr>
       </table>
     </form>
-    <script>
-      function validateAge() {
-        const dobInput = document.getElementById('day');
-        const errorSpan = document.getElementById('dob-error');
-
-        const dob = new Date(dobInput.value);
-        const today = new Date();
-
-        // Calculate the date 22 years ago
-        const minDate = new Date();
-        minDate.setFullYear(minDate.getFullYear() - 22);
-
-        if (dob > minDate) {
-          const formattedMinDate = minDate.toISOString().split("T")[0]; // Format as yyyy-mm-dd
-          errorSpan.textContent = `Birth date should be on or before ${formattedMinDate}`;
-          errorSpan.style.display = 'inline';
-          dobInput.setCustomValidity("Invalid birth date");
-        } else {
-          errorSpan.style.display = 'none';
-          dobInput.setCustomValidity("");
-        }
-      }
-    </script>
-
-
-    <?php
-    ?>
-
   </div>
+
+  <script>
+    function validateAge() {
+      const dobInput = document.getElementById('day');
+      const errorSpan = document.getElementById('dob-error');
+      const dob = new Date(dobInput.value);
+      const today = new Date();
+      const minDate = new Date();
+      minDate.setFullYear(minDate.getFullYear() - 22);
+
+      if (dob > minDate) {
+        const formattedMinDate = minDate.toISOString().split("T")[0];
+        errorSpan.textContent = `Birth date should be on or before ${formattedMinDate}`;
+        errorSpan.style.display = 'inline';
+        dobInput.setCustomValidity("Invalid birth date");
+      } else {
+        errorSpan.style.display = 'none';
+        dobInput.setCustomValidity("");
+      }
+    }
+  </script>
 </body>
-
-
 
 </html>
