@@ -223,7 +223,7 @@ if (!isset($_SESSION['user'])) {
 			<a href="index.php" style="float:left;">Logout</a><br>
 		<?php } ?>
 	</div>
-	<div style="background-color:;text-indent:0px;margin-top:50px;width:70%;font-family:verdana;font-size:25px;float:right;line-height:40px;background-color:white;border-radius:10px;padding:25px;height:90%;padding-bottom:500px;">
+	<div style="background-color:white;text-indent:0px;margin-top:50px;width:70%;font-family:verdana;font-size:25px;float:right;line-height:40px;background-color:white;border-radius:10px;padding:25px;height:90%;padding-bottom:500px;">
 		<?php
 		if (!isset($_SESSION['pension_choice']) || !in_array($_SESSION['pension_choice'], ['public', 'private'])) {
 			echo "<div class='error-message'>Please select a pension type (public or private) from the <a href='pension_choice.php'>Pension Choice</a> page.</div>";
