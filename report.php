@@ -122,6 +122,65 @@ if (!isset($_SESSION['user'])) {
 				transform: rotate(360deg);
 			}
 		}
+
+		.detail-button {
+			padding: 6px 12px;
+			background-color: #007bff;
+			color: white;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			font-size: 14px;
+		}
+
+		.detail-button:hover {
+			background-color: #0056b3;
+		}
+
+		.modal {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(0, 0, 0, 0.5);
+			justify-content: center;
+			align-items: center;
+			z-index: 1000;
+		}
+
+		.modal-content {
+			background-color: white;
+			padding: 20px;
+			border-radius: 8px;
+			width: 90%;
+			max-width: 600px;
+			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+			position: relative;
+		}
+
+		.modal-content h3 {
+			margin: 0 0 15px;
+			font-family: verdana;
+			font-size: 20px;
+			text-align: center;
+		}
+
+		.modal-content p {
+			margin: 10px 0;
+			font-family: verdana;
+			font-size: 16px;
+		}
+
+		.close-button {
+			position: absolute;
+			top: 10px;
+			right: 15px;
+			font-size: 24px;
+			cursor: pointer;
+			color: #333;
+		}
 	</style>
 </head>
 
@@ -184,7 +243,8 @@ if (!isset($_SESSION['user'])) {
 				if (empty($id)) {
 					echo "<div class='error-message'>Please enter an SSN.</div>";
 				} else {
-					$searchsql = "SELECT p.*, CONCAT(b.first, ' ', b.father, ' ', b.last) AS beneficiery_name 
+					$searchsql = "SELECT p.*, b.id AS ben_id, b.first AS ben_first, b.father AS ben_father, b.last AS ben_last, 
+                              b.deathdate AS ben_deathdate, b.bencat AS ben_bencat, b.benbirth AS ben_benbirth, b.benshare AS ben_benshare 
                               FROM pensioner p 
                               LEFT JOIN beneficiery b ON p.fname = b.fname 
                               WHERE p.ssn = ? AND p.orgtype = ?";
@@ -207,7 +267,7 @@ if (!isset($_SESSION['user'])) {
 						echo "<table style='width:100%;margin-bottom:50px;font-size:18px;'>";
 						echo "<caption style='font-family:verdana;font-size:22px;'>Pensioner Information</caption>";
 						echo "<tr>";
-						echo "<th>Photo</th><th>SSN</th><th>Name</th><th>Birth Date</th><th>Organization</th><th>Nationality</th><th>Marital Status</th><th>Sex</th><th>Registration Date</th><th>beneficiery Name</th><th>Time Left for Retirement</th>";
+						echo "<th>Photo</th><th>SSN</th><th>Name</th><th>Birth Date</th><th>Organization</th><th>Nationality</th><th>Marital Status</th><th>Sex</th><th>Registration Date</th><th>beneficiery Detail</th><th>Time Left for Retirement</th>";
 						echo "</tr>";
 						echo "<tr>";
 						echo "<td><img width=100 height=100 src='" . htmlspecialchars($fetchsql['photo']) . "'></td>";
@@ -219,7 +279,15 @@ if (!isset($_SESSION['user'])) {
 						echo "<td>" . htmlspecialchars($fetchsql['mstatus']) . "</td>";
 						echo "<td>" . htmlspecialchars($fetchsql['sex']) . "</td>";
 						echo "<td>" . htmlspecialchars($fetchsql['rdate']) . "</td>";
-						echo "<td>" . ($fetchsql['beneficiery_name'] ? htmlspecialchars($fetchsql['beneficiery_name']) : '-') . "</td>";
+						echo "<td><button class='detail-button' onclick='showbeneficieryDetail(" .
+							json_encode($fetchsql['ben_id'] ?? '') . ", " .
+							json_encode($fetchsql['ben_first'] ?? '') . ", " .
+							json_encode($fetchsql['ben_father'] ?? '') . ", " .
+							json_encode($fetchsql['ben_last'] ?? '') . ", " .
+							json_encode($fetchsql['ben_deathdate'] ?? '') . ", " .
+							json_encode($fetchsql['ben_bencat'] ?? '') . ", " .
+							json_encode($fetchsql['ben_benbirth'] ?? '') . ", " .
+							json_encode($fetchsql['ben_benshare'] ?? '') . ")'>Show beneficiery Detail</button></td>";
 						echo "<td>" . htmlspecialchars($time_left) . "</td>";
 						echo "</tr>";
 						echo "</table>";
@@ -320,7 +388,8 @@ if (!isset($_SESSION['user'])) {
 				$total_rows = $total_result->fetch_assoc()['count'];
 				$stmt->close();
 				$total_pages = ceil($total_rows / $records_per_page);
-				$all_pensioners_sql = "SELECT p.*, CONCAT(b.first, ' ', b.father, ' ', b.last) AS beneficiery_name 
+				$all_pensioners_sql = "SELECT p.*, b.id AS ben_id, b.first AS ben_first, b.father AS ben_father, b.last AS ben_last, 
+                                   b.deathdate AS ben_deathdate, b.bencat AS ben_bencat, b.benbirth AS ben_benbirth, b.benshare AS ben_benshare 
                                    FROM pensioner p 
                                    LEFT JOIN beneficiery b ON p.fname = b.fname 
                                    WHERE p.orgtype = ? 
@@ -341,7 +410,7 @@ if (!isset($_SESSION['user'])) {
 						<th>Marital Status</th>
 						<th>Sex</th>
 						<th>Registration Date</th>
-						<th>beneficiery Name</th>
+						<th>beneficiery Detail</th>
 						<th>Time Left for Retirement</th>
 					</tr>
 					<?php
@@ -367,7 +436,15 @@ if (!isset($_SESSION['user'])) {
 							echo "<td>" . htmlspecialchars($pensioner['mstatus']) . "</td>";
 							echo "<td>" . htmlspecialchars($pensioner['sex']) . "</td>";
 							echo "<td>" . htmlspecialchars($pensioner['rdate']) . "</td>";
-							echo "<td>" . ($pensioner['beneficiery_name'] ? htmlspecialchars($pensioner['beneficiery_name']) : '-') . "</td>";
+							echo "<td><button class='detail-button' onclick='showbeneficieryDetail(" .
+								json_encode($pensioner['ben_id'] ?? '') . ", " .
+								json_encode($pensioner['ben_first'] ?? '') . ", " .
+								json_encode($pensioner['ben_father'] ?? '') . ", " .
+								json_encode($pensioner['ben_last'] ?? '') . ", " .
+								json_encode($pensioner['ben_deathdate'] ?? '') . ", " .
+								json_encode($pensioner['ben_bencat'] ?? '') . ", " .
+								json_encode($pensioner['ben_benbirth'] ?? '') . ", " .
+								json_encode($pensioner['ben_benshare'] ?? '') . ")'>Show beneficiery Detail</button></td>";
 							echo "<td>" . htmlspecialchars($time_left) . "</td>";
 							echo "</tr>";
 						}
@@ -377,10 +454,50 @@ if (!isset($_SESSION['user'])) {
 					$stmt->close();
 					?>
 				</table>
-
+				
 			</div>
 		<?php } ?>
+		<div id="beneficieryModal" class="modal">
+			<div class="modal-content">
+				<span class="close-button" onclick="closeModal()">×</span>
+				<h3>beneficiery Details</h3>
+				<div id="beneficieryDetails"></div>
+			</div>
+		</div>
 	</div>
+	<script>
+		function showbeneficieryDetail(id, first, father, last, deathdate, bencat, benbirth, benshare) {
+			const modal = document.getElementById('beneficieryModal');
+			const details = document.getElementById('beneficieryDetails');
+			if (id || first || father || last || deathdate || bencat || benbirth || benshare) {
+				details.innerHTML = `
+					<p><strong>ID:</strong> ${id || '-'}</p>
+					<p><strong>First Name:</strong> ${first || '-'}</p>
+					<p><strong>Father's Name:</strong> ${father || '-'}</p>
+					<p><strong>Last Name:</strong> ${last || '-'}</p>
+					<p><strong>Pensioner Death Date:</strong> ${deathdate || '-'}</p>
+					<p><strong>beneficiery Category:</strong> ${bencat || '-'}</p>
+					<p><strong>beneficiery Birth Date:</strong> ${benbirth || '-'}</p>
+					<p><strong>beneficiery Share (%):</strong> ${benshare || '-'}</p>
+				`;
+			} else {
+				details.innerHTML = '<p>No beneficiery found.</p>';
+			}
+			modal.style.display = 'flex';
+		}
+
+		function closeModal() {
+			const modal = document.getElementById('beneficieryModal');
+			modal.style.display = 'none';
+		}
+
+		window.onclick = function(event) {
+			const modal = document.getElementById('beneficieryModal');
+			if (event.target === modal) {
+				closeModal();
+			}
+		};
+	</script>
 </body>
 
 </html>
