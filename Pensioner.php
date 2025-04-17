@@ -30,24 +30,26 @@ if (!isset($_SESSION['pension_choice']) || !in_array($_SESSION['pension_choice']
 $success = 0;
 $sex = $_POST["sex"] ?? '';
 $bod = $_POST["dob"] ?? '';
-$nationality = $_POST["nationality"] ?? '';
 $mstatus = $_POST["mstatus"] ?? '';
 $salary = $_POST["salary"] ?? '';
 $service = $_POST["service"] ?? '';
-$rdate = date("Y-m-d"); // Use full year format (Y-m-d) instead of y-m-d
+$password = $_POST["password"] ?? '';
+$rdate = date("Y-m-d");
 $first = $_POST["firstname"] ?? '';
 $father = $_POST["fathername"] ?? '';
 $last = $_POST["lastname"] ?? '';
-$type = $_SESSION['pension_choice']; // Use the session value
-$company_id = $_SESSION['selected_company_id']; // From choose_company.php
+$type = $_SESSION['pension_choice'];
+$company_id = $_SESSION['selected_company_id'];
 
 if (isset($_REQUEST['register'])) {
-  if (empty($first) || empty($father) || empty($last) || empty($sex) || empty($bod) || empty($nationality) || empty($mstatus) || empty($salary) || empty($service)) {
+  if (empty($first) || empty($father) || empty($last) || empty($sex) || empty($bod) || empty($mstatus) || empty($salary) || empty($service) || empty($password)) {
     echo "<script>alert('Fill all required fields');</script>";
   } else if ((!preg_match('/[a-zA-Z]/', trim($first))) || (!preg_match('/[a-zA-Z]/', trim($father))) || (!preg_match('/[a-zA-Z]/', trim($last)))
-    || (!preg_match('/[a-zA-Z]/', trim($nationality))) || (!preg_match('/[a-zA-Z]/', trim($mstatus)))
+    || (!preg_match('/[a-zA-Z]/', trim($mstatus)))
   ) {
     $msg = "Incorrect data. Please don’t fill numbers in text fields.";
+  } else if (strlen($password) < 8) {
+    $msg = "Password must be at least 8 characters long.";
   } else {
     $fname = "$first $father $last";
     $qfile = $_FILES['photo']['name'] ?? '';
@@ -76,11 +78,11 @@ if (isset($_REQUEST['register'])) {
       }
     }
 
-    // Prepare and execute the insert query with company_id
-    $query = "INSERT INTO Pensioner (ssn, fname, sex, bod, orgtype, nationality, mstatus, salary, service, rdate, orgid, photo, company_id) 
+    // Prepare and execute the insert query without hashing password
+    $query = "INSERT INTO Pensioner (ssn, fname, sex, bod, orgtype, mstatus, salary, service, rdate, orgid, photo, company_id, password) 
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     if ($stmt = $mysqli->prepare($query)) {
-      $stmt->bind_param("sssssssssssss", $ssno, $fname, $sex, $bod, $type, $nationality, $mstatus, $salary, $service, $rdate, $orgid, $qfile, $company_id);
+      $stmt->bind_param("sssssssssssss", $ssno, $fname, $sex, $bod, $type, $mstatus, $salary, $service, $rdate, $orgid, $qfile, $company_id, $password);
       if ($stmt->execute()) {
         move_uploaded_file($tname, $folder);
         echo "<script>alert('You have successfully registered a new pensioner');</script>";
@@ -195,6 +197,26 @@ if (isset($_REQUEST['register'])) {
       font-family: Verdana;
       font-size: 25px;
     }
+
+    .password-container {
+      position: relative;
+      width: 70%;
+    }
+
+    .password-container input {
+      width: 100%;
+      height: 30px;
+      font-size: 25px;
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 20px;
+    }
   </style>
 </head>
 
@@ -242,7 +264,6 @@ if (isset($_REQUEST['register'])) {
       <table>
         <tr>
           <td colspan="3" class="HeaderColor">
-
             <h2>Register New Pensioner</h2>
             <hr color="blue">
             <font color="#FF0000" align="center"><?php echo $msg ?? ''; ?></font>
@@ -275,17 +296,8 @@ if (isset($_REQUEST['register'])) {
           </td>
         </tr>
         <tr>
-          <td class="LabelColor" nowrap="nowrap"><label for="nationality">Nationality</label></td>
-          <td colspan="2" class="TitleColor">
-            <select id="nationality" name="nationality">
-              <option value="Ethiopian">Ethiopian</option>
-              <option value="Foreigner">Foreigner</option>
-            </select>
-          </td>
-        </tr>
-        <tr>
           <td class="LabelColor" nowrap="nowrap"><label for="mstatus">Marital Status</label></td>
-          <td colspan="2" class="Title जिसमेंColor">
+          <td colspan="2" class="TitleColor">
             <select id="mstatus" name="mstatus">
               <option>Married</option>
               <option>Unmarried</option>
@@ -303,6 +315,15 @@ if (isset($_REQUEST['register'])) {
         <tr>
           <td class="LabelColor" nowrap="nowrap"><label for="photo">Photo</label></td>
           <td colspan="2" class="TitleColor"><input name="photo" type="file" required></td>
+        </tr>
+        <tr>
+          <td class="LabelColor" nowrap="nowrap"><label for="password">Password</label></td>
+          <td colspan="2" class="TitleColor">
+            <div class="password-container">
+              <input type="password" id="password" name="password" required minlength="8">
+              <span class="password-toggle" onclick="togglePassword()">👁️</span>
+            </div>
+          </td>
         </tr>
         <tr class="FooterColor">
           <td></td>
@@ -332,6 +353,18 @@ if (isset($_REQUEST['register'])) {
       } else {
         errorSpan.style.display = 'none';
         dobInput.setCustomValidity("");
+      }
+    }
+
+    function togglePassword() {
+      const passwordInput = document.getElementById('password');
+      const toggleButton = document.querySelector('.password-toggle');
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleButton.textContent = '🙈';
+      } else {
+        passwordInput.type = 'password';
+        toggleButton.textContent = '👁️';
       }
     }
   </script>
