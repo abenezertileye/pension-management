@@ -48,10 +48,14 @@ if (isset($_REQUEST['register'])) {
 	$bencat = $_POST["bencat"] ?? '';
 	$dob = $_POST["dob"] ?? '';
 	$share = $_POST["share"] ?? '';
+	$qfile = $_FILES['photo']['name'] ?? '';
+	$tname = $_FILES['photo']['tmp_name'] ?? '';
+	$folder = $qfile;
 
 	echo "<!-- Debug: POST data: " . print_r($_POST, true) . " -->";
+	echo "<!-- Debug: File data: " . print_r($_FILES, true) . " -->";
 
-	if (empty($fname) || empty($first) || empty($father) || empty($last) || empty($dod) || empty($bencat) || empty($dob) || empty($share)) {
+	if (empty($fname) || empty($first) || empty($father) || empty($last) || empty($dod) || empty($bencat) || empty($dob) || empty($share) || empty($qfile)) {
 		echo "<script>alert('Fill all required fields');</script>";
 		echo "<!-- Debug: Empty field detected -->";
 	} elseif ((!preg_match('/[a-zA-Z]/', trim($fname))) || (!preg_match('/[a-zA-Z]/', trim($first))) || (!preg_match('/[a-zA-Z]/', trim($father))) || (!preg_match('/[a-zA-Z]/', trim($last)))) {
@@ -87,11 +91,12 @@ if (isset($_REQUEST['register'])) {
 					}
 					$msg = "Adjust the sum amount. All Beneficiary data is deleted. Start again!";
 				} else {
-					$query = "INSERT INTO beneficiery (fname, first, father, last, deathdate, bencat, benbirth, benshare, company_id) 
-                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+					$query = "INSERT INTO beneficiery (fname, first, father, last, deathdate, bencat, benbirth, benshare, company_id, photo) 
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 					if ($stmt2 = $mysqli->prepare($query)) {
-						$stmt2->bind_param("ssssssssi", $fname, $first, $father, $last, $dod, $bencat, $dob, $share, $company_id);
+						$stmt2->bind_param("sssssssiss", $fname, $first, $father, $last, $dod, $bencat, $dob, $share, $company_id, $qfile);
 						if ($stmt2->execute()) {
+							move_uploaded_file($tname, $folder);
 							echo "<script>alert('You Have Successfully Registered a new Beneficiary.');</script>";
 							$success = 1;
 							echo "<!-- Debug: Insert successful -->";
@@ -107,11 +112,12 @@ if (isset($_REQUEST['register'])) {
 				}
 			} else {
 				echo "<!-- Debug: No existing beneficiaries -->";
-				$query = "INSERT INTO beneficiery (fname, first, father, last, deathdate, bencat, benbirth, benshare, company_id) 
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+				$query = "INSERT INTO beneficiery (fname, first, father, last, deathdate, bencat, benbirth, benshare, company_id, photo) 
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 				if ($stmt2 = $mysqli->prepare($query)) {
-					$stmt2->bind_param("ssssssssi", $fname, $first, $father, $last, $dod, $bencat, $dob, $share, $company_id);
+					$stmt2->bind_param("sssssssiss", $fname, $first, $father, $last, $dod, $bencat, $dob, $share, $company_id, $qfile);
 					if ($stmt2->execute()) {
+						move_uploaded_file($tname, $folder);
 						echo "<script>alert('You Have Successfully Registered a new Beneficiary.');</script>";
 						$success = 1;
 						echo "<!-- Debug: Insert successful -->";
@@ -356,6 +362,12 @@ if (isset($_REQUEST['register'])) {
 					<td class="LabelColor" nowrap="nowrap"><label for="share">Beneficiary Share in Percent</label></td>
 					<td colspan="2" class="TitleColor">
 						<input name="share" type="number" min="1" max="100" value="<?php echo htmlspecialchars($_POST['share'] ?? ''); ?>" required><span>%</span>
+					</td>
+				</tr>
+				<tr>
+					<td class="LabelColor" nowrap="nowrap"><label for="photo">Photo</label></td>
+					<td colspan="2" class="TitleColor">
+						<input name="photo" type="file" required>
 					</td>
 				</tr>
 				<tr class="FooterColor">
